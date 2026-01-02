@@ -1,4 +1,44 @@
 <!DOCTYPE html>
+<script>
+  // ====== debug overlay: 讓白畫面變成「有錯誤就印出來」 ======
+  (function () {
+    const app = document.getElementById("app");
+    if (app) {
+      app.innerHTML = `
+        <div style="padding:16px;font-family:system-ui;">
+          <div style="font-weight:800;">Loading…</div>
+          <div style="color:#666;font-size:12px;margin-top:6px;">如果卡住，代表 JS 可能爆了，我會把錯誤印在這裡。</div>
+        </div>
+      `;
+    }
+
+    window.addEventListener("error", (e) => {
+      const msg = (e && (e.message || e.error && e.error.message)) || String(e);
+      showErr("JS Error", msg);
+    });
+
+    window.addEventListener("unhandledrejection", (e) => {
+      const msg = (e && e.reason && (e.reason.message || e.reason)) || String(e);
+      showErr("Promise Rejection", msg);
+    });
+
+    function showErr(title, msg) {
+      const app = document.getElementById("app");
+      if (!app) return;
+      app.innerHTML = `
+        <div style="padding:16px;font-family:system-ui;">
+          <div style="font-weight:900;color:#b00020;">${escapeHtml(title)}</div>
+          <pre style="white-space:pre-wrap;background:#fff;border:1px solid #eee;padding:12px;border-radius:12px;margin-top:10px;">${escapeHtml(msg)}</pre>
+          <div style="color:#666;font-size:12px;margin-top:10px;">請把上面錯誤訊息截圖丟我，我就能精準修掉。</div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(s){
+      return String(s||"").replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
+    }
+  })();
+</script>
 <html lang="zh-Hant-TW">
 <head>
   <meta charset="UTF-8" />
