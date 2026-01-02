@@ -1,0 +1,1543 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>飲料紀錄</title>
+  <style>
+    :root{
+      --bg:#eef2ea;
+      --card:#ffffffcc;
+      --cardSolid:#fff;
+      --ink:#596b3a;
+      --ink2:#7c8a5f;
+      --muted:#a7b09a;
+      --line:#dfe6d6;
+      --shadow:0 10px 25px rgba(33,40,24,.08);
+      --radius:22px;
+
+      --red:#c77b7b;
+      --redLite:#f0dada;
+
+      --green:#6f7f46;
+      --greenLite:#dfe7d3;
+
+      --pill:#e8ece2;
+      --pillText:#647055;
+
+      --countPill:#dfe4db;
+      --countText:#707a69;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-rounded, system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      background: radial-gradient(1200px 700px at 50% -120px, #f7faf4 0%, var(--bg) 55%, #e9eee3 100%);
+      color:var(--ink);
+    }
+
+    /* page container */
+    .app{
+      max-width:420px;
+      margin:0 auto;
+      padding:18px 14px 28px;
+    }
+
+    /* title */
+    .titleRow{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      margin-top:6px;
+      margin-bottom:10px;
+      position:relative;
+    }
+    .titleRow h1{
+      font-size:20px;
+      letter-spacing:.08em;
+      margin:0;
+      color:var(--ink);
+      opacity:.92;
+      font-weight:800;
+    }
+    .titleRow .editBtn{
+      position:absolute;
+      right:2px;
+      top:50%;
+      transform:translateY(-50%);
+      width:34px;height:34px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:var(--card);
+      box-shadow:0 6px 14px rgba(33,40,24,.06);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+    }
+    .titleRow .editBtn svg{ width:18px;height:18px; }
+
+    /* stats */
+    .stats{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin:10px 0 14px;
+    }
+    .statCard{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+      padding:12px 12px 10px;
+      position:relative;
+      overflow:hidden;
+      min-height:74px;
+    }
+    .statCard .cap{
+      font-weight:900;
+      letter-spacing:.18em;
+      font-size:12px;
+      opacity:.9;
+      margin-bottom:8px;
+      text-align:center;
+    }
+    .statCard .val{
+      display:flex;
+      justify-content:center;
+      gap:6px;
+      align-items:baseline;
+      font-weight:900;
+      font-size:20px;
+    }
+    .statCard .val small{
+      font-size:14px;
+      opacity:.9;
+      font-weight:900;
+    }
+    /* thin header strip like your "年度累計" top */
+    .strip{
+      position:absolute;
+      left:10px;
+      right:10px;
+      top:10px;
+      height:10px;
+      border-radius:999px;
+      opacity:.95;
+      filter:saturate(1.02);
+    }
+    .statCard.year .strip{ background:linear-gradient(90deg, var(--redLite), rgba(255,255,255,.0)); }
+    .statCard.month .strip{ background:linear-gradient(90deg, var(--greenLite), rgba(255,255,255,.0)); }
+
+    .statCard.year .cap{ color:var(--red); }
+    .statCard.year .val{ color:var(--red); }
+
+    .statCard.month .cap{ color:var(--green); }
+    .statCard.month .val{ color:var(--green); }
+
+    /* month nav */
+    .monthNav{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:22px;
+      box-shadow:var(--shadow);
+      padding:10px 10px;
+      display:grid;
+      grid-template-columns:44px 1fr 44px 74px;
+      align-items:center;
+      gap:8px;
+      margin-bottom:12px;
+    }
+    .navBtn{
+      width:44px;height:38px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.8);
+      cursor:pointer;
+      display:grid;
+      place-items:center;
+      font-weight:900;
+      color:var(--ink);
+    }
+    .monthLabel{
+      text-align:center;
+      font-weight:900;
+      font-size:22px;
+      letter-spacing:.05em;
+      color:var(--ink);
+    }
+    .todayBtn{
+      height:38px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.8);
+      cursor:pointer;
+      font-weight:900;
+      letter-spacing:.08em;
+      color:var(--ink);
+    }
+
+    /* calendar */
+    .calWrap{
+      background:rgba(255,255,255,.65);
+      border:1px solid var(--line);
+      border-radius:26px;
+      box-shadow:var(--shadow);
+      padding:14px 14px 16px;
+    }
+    .dow{
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:8px;
+      padding:2px 4px 12px;
+      font-weight:900;
+      letter-spacing:.18em;
+      color:var(--ink2);
+      font-size:12px;
+      text-align:center;
+      user-select:none;
+    }
+    .dow div:nth-child(1){ color:var(--red); }
+    .dow div:nth-child(7){ color:var(--red); }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:10px;
+    }
+    .day{
+      height:54px;
+      border-radius:18px;
+      border:1px solid rgba(220,228,214,.85);
+      background:rgba(255,255,255,.72);
+      box-shadow:0 8px 16px rgba(33,40,24,.04);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      position:relative;
+      user-select:none;
+      overflow:hidden;
+    }
+    .day .num{
+      font-weight:900;
+      color:var(--ink);
+      line-height:1;
+      font-size:16px;
+    }
+    .day .amt{
+      margin-top:4px;
+      font-weight:900;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .day.muted{
+      opacity:.35;
+      cursor:default;
+    }
+    .day.sun .num, .day.sat .num{ color:var(--red); }
+    .day.hasDrink{
+      background:rgba(255,255,255,.82);
+    }
+    .day.hasDrink::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      border-radius:18px;
+      border:2px solid rgba(111,127,70,.22);
+      pointer-events:none;
+    }
+    .day.selected{
+      background:rgba(223,231,211,.75);
+    }
+    .day.selected::after{
+      border-color:rgba(111,127,70,.34);
+    }
+
+    /* bottom section (fixed width like calendar) */
+    .bottomWrap{
+      margin-top:12px;
+      background:rgba(255,255,255,.55);
+      border:1px solid var(--line);
+      border-radius:26px;
+      box-shadow:var(--shadow);
+      padding:12px 12px 12px;
+      width:100%;
+    }
+    .bottomTitle{
+      text-align:center;
+      font-weight:900;
+      letter-spacing:.12em;
+      color:var(--ink);
+      margin:2px 0 10px;
+      font-size:14px;
+    }
+    .topCards{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:10px;
+    }
+    .miniCard{
+      background:rgba(255,255,255,.82);
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow:0 8px 16px rgba(33,40,24,.05);
+      padding:10px 10px;
+      cursor:pointer;
+      min-height:64px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      gap:6px;
+    }
+    .miniCard .s{
+      font-weight:900;
+      color:var(--ink);
+      font-size:13px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .miniCard .i{
+      font-weight:900;
+      color:var(--ink2);
+      font-size:12px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .miniCard.empty{
+      cursor:default;
+      opacity:.55;
+    }
+
+    /* buttons row */
+    .actions{
+      margin-top:12px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+    .actionBtn{
+      background:rgba(255,255,255,.65);
+      border:1px solid var(--line);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+      padding:12px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      font-weight:900;
+      letter-spacing:.08em;
+      cursor:pointer;
+      user-select:none;
+    }
+    .actionBtn.like{ color:var(--green); }
+    .actionBtn.dislike{ color:var(--red); }
+    .actionBtn svg{ width:20px;height:20px; }
+
+    /* modal base */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.32);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      z-index:50;
+    }
+    .overlay.show{ display:flex; }
+    .modal{
+      width:min(420px, 100%);
+      background:rgba(255,255,255,.92);
+      border:1px solid var(--line);
+      border-radius:26px;
+      box-shadow:0 30px 60px rgba(0,0,0,.18);
+      padding:16px 16px 14px;
+      position:relative;
+      backdrop-filter: blur(6px);
+    }
+    .modal h3{
+      margin:4px 0 12px;
+      text-align:center;
+      font-size:20px;
+      letter-spacing:.12em;
+      font-weight:900;
+      color:var(--ink);
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:center;
+    }
+    .modal h3 .hIcon{ width:22px;height:22px; }
+    .modal .closeX{
+      position:absolute;
+      right:12px;
+      top:10px;
+      width:34px;height:34px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.8);
+      cursor:pointer;
+      display:grid;
+      place-items:center;
+      font-weight:900;
+      color:var(--ink2);
+    }
+
+    .primaryBtn{
+      width:100%;
+      height:54px;
+      border:none;
+      border-radius:18px;
+      background:var(--green);
+      color:white;
+      font-weight:900;
+      letter-spacing:.18em;
+      font-size:18px;
+      cursor:pointer;
+      margin-top:12px;
+    }
+
+    /* store picker */
+    .storeHeader{
+      display:grid;
+      grid-template-columns:1fr auto;
+      align-items:center;
+      gap:10px;
+      margin-top:2px;
+      margin-bottom:10px;
+    }
+    .storeHeader .title{
+      text-align:center;
+      font-weight:900;
+      font-size:20px;
+      letter-spacing:.12em;
+      color:var(--ink);
+    }
+    .storeHeader .manageBtn{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.8);
+      border-radius:999px;
+      padding:8px 12px;
+      font-weight:900;
+      color:var(--ink2);
+      cursor:pointer;
+    }
+    .chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      justify-content:center; /* centered */
+      padding:6px 2px 8px;
+    }
+    .chip{
+      border:1px solid rgba(220,228,214,.95);
+      background:rgba(223,231,211,.7);
+      color:var(--ink);
+      border-radius:999px;
+      padding:10px 14px;
+      font-weight:900;
+      cursor:pointer;
+      position:relative;
+      min-width:74px;
+      text-align:center;
+    }
+    .chip .del{
+      display:none;
+      position:absolute;
+      top:-6px;
+      right:-6px;
+      width:22px;height:22px;
+      border-radius:999px;
+      background:rgba(255,255,255,.92);
+      border:1px solid var(--line);
+      color:var(--red);
+      font-weight:900;
+      cursor:pointer;
+      line-height:20px;
+    }
+    .chips.manage .chip .del{ display:block; }
+
+    .addRow{
+      margin-top:10px;
+      border:2px solid rgba(220,228,214,.95);
+      background:rgba(255,255,255,.65);
+      border-radius:18px;
+      padding:12px 12px;
+      text-align:center;
+      font-weight:900;
+      color:var(--ink2);
+      cursor:pointer;
+    }
+
+    /* record editor */
+    .formGrid{
+      display:grid;
+      gap:10px;
+    }
+    .fieldRow{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+    .field{
+      background:rgba(255,255,255,.78);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:12px 12px;
+    }
+    .field label{
+      font-weight:900;
+      letter-spacing:.12em;
+      font-size:12px;
+      color:var(--ink2);
+      display:block;
+      margin-bottom:8px;
+    }
+    .field .pick{
+      border:1px solid rgba(220,228,214,.95);
+      background:rgba(223,231,211,.55);
+      padding:10px 12px;
+      border-radius:14px;
+      font-weight:900;
+      cursor:pointer;
+      text-align:center;
+      color:var(--ink);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .field input{
+      width:100%;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(220,228,214,.95);
+      outline:none;
+      font-weight:900;
+      font-size:14px;
+      color:var(--ink);
+      background:rgba(255,255,255,.9);
+    }
+    .segRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      justify-content:flex-start;
+    }
+    .seg{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(220,228,214,.95);
+      background:rgba(255,255,255,.75);
+      font-weight:900;
+      color:var(--ink2);
+      cursor:pointer;
+      user-select:none;
+    }
+    .seg.on{
+      background:rgba(111,127,70,.18);
+      border-color:rgba(111,127,70,.28);
+      color:var(--ink);
+    }
+
+    .dangerRow{
+      display:flex;
+      gap:10px;
+      margin-top:10px;
+    }
+    .dangerBtn{
+      flex:1;
+      height:46px;
+      border-radius:16px;
+      border:1px solid rgba(215,170,170,.55);
+      background:rgba(255,255,255,.72);
+      color:var(--red);
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    /* list modal (ranking / like / dislike) */
+    .list{
+      display:grid;
+      gap:10px;
+      margin-top:6px;
+    }
+    .listItem{
+      background:rgba(223,231,211,.55);
+      border:1px solid rgba(220,228,214,.95);
+      border-radius:18px;
+      padding:12px 12px;
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:10px;
+      align-items:center;
+      min-height:52px;
+    }
+    .listItem .txt{
+      font-weight:900;
+      color:var(--ink);
+      overflow:hidden;
+    }
+    .listItem .txt .main{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      display:block;
+      max-width:100%;
+    }
+    .listItem .txt .sub{
+      margin-top:6px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      color:var(--ink2);
+      font-weight:900;
+      font-size:12px;
+    }
+    .pill{
+      background:var(--pill);
+      border:1px solid rgba(220,228,214,.95);
+      color:var(--pillText);
+      border-radius:999px;
+      padding:6px 10px;
+      font-weight:900;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .countPill{
+      background:var(--countPill);
+      border:1px solid rgba(190,198,182,.7);
+      color:var(--countText);
+      border-radius:999px;
+      padding:8px 12px;
+      font-weight:900;
+      min-width:56px;
+      text-align:center;
+    }
+
+    /* small helper */
+    .hint{
+      text-align:center;
+      color:var(--muted);
+      font-weight:900;
+      letter-spacing:.05em;
+      font-size:12px;
+      margin-top:4px;
+    }
+
+    /* JS error overlay (so not "white" without clues) */
+    .jsErr{
+      position:fixed;
+      inset:0;
+      background:radial-gradient(900px 500px at 50% 0%, #fff 0%, #f2f4ef 60%, #e9eee3 100%);
+      display:none;
+      z-index:999;
+      padding:22px 16px;
+    }
+    .jsErr.show{ display:block; }
+    .jsErr h2{
+      margin:6px 0 12px;
+      color:#b33;
+      font-size:22px;
+      font-weight:1000;
+    }
+    .jsErr pre{
+      background:#fff;
+      border:1px solid #f0c8c8;
+      border-radius:16px;
+      padding:14px;
+      overflow:auto;
+      white-space:pre-wrap;
+      word-break:break-word;
+      max-height:55vh;
+      box-shadow:0 12px 26px rgba(0,0,0,.08);
+      font-weight:800;
+    }
+    .jsErr .small{
+      margin-top:10px;
+      color:#888;
+      font-weight:800;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="titleRow">
+      <h1>一隻肥豬嘉的誕生</h1>
+      <button class="editBtn" id="openQuickAdd" title="新增紀錄">
+        <!-- cup (outline) -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 8h10v8a4 4 0 0 1-4 4h-2a4 4 0 0 1-4-4V8z"/>
+          <path d="M17 10h2a2 2 0 0 1 0 4h-2"/>
+          <path d="M9 6h6"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="stats">
+      <div class="statCard year">
+        <div class="strip"></div>
+        <div class="cap">年度累計</div>
+        <div class="val"><span id="yearCount">0</span><small>杯</small> <span id="yearMoney">$0</span></div>
+      </div>
+      <div class="statCard month">
+        <div class="strip"></div>
+        <div class="cap">本月統計</div>
+        <div class="val"><span id="monthCount">0</span><small>杯</small> <span id="monthMoney">$0</span></div>
+      </div>
+    </div>
+
+    <div class="monthNav">
+      <button class="navBtn" id="prevMonth" aria-label="上個月">‹</button>
+      <div class="monthLabel" id="monthLabel">2026.01</div>
+      <button class="navBtn" id="nextMonth" aria-label="下個月">›</button>
+      <button class="todayBtn" id="goToday">今天</button>
+    </div>
+
+    <div class="calWrap" id="calWrap">
+      <div class="dow">
+        <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="bottomWrap" id="bottomWrap">
+      <div class="bottomTitle">我最常喝</div>
+      <div class="topCards" id="topCards"></div>
+      <div class="hint">點卡片看詳細（次數/甜度/冰量）</div>
+    </div>
+
+    <div class="actions">
+      <div class="actionBtn like" id="openLike">
+        <!-- thumbs up outline -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 9V5a3 3 0 0 0-6 0v4"/>
+          <path d="M7 9h11a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-7"/>
+          <path d="M7 9v10H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h3z"/>
+        </svg>
+        讚讚 (<span id="likeCount">0</span>)
+      </div>
+      <div class="actionBtn dislike" id="openDislike">
+        <!-- thumbs down outline -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10 15v4a3 3 0 0 0 6 0v-4"/>
+          <path d="M17 15H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h7"/>
+          <path d="M17 15V5h3a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-3z"/>
+        </svg>
+        踩雷 (<span id="dislikeCount">0</span>)
+      </div>
+    </div>
+  </div>
+
+  <!-- Record modal -->
+  <div class="overlay" id="recordOverlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="closeX" data-close="recordOverlay">×</button>
+      <h3>
+        <svg class="hIcon" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 8h10v8a4 4 0 0 1-4 4h-2a4 4 0 0 1-4-4V8z"/>
+          <path d="M17 10h2a2 2 0 0 1 0 4h-2"/>
+          <path d="M9 6h6"/>
+        </svg>
+        <span id="recordTitle">新增紀錄</span>
+      </h3>
+
+      <div class="formGrid">
+        <div class="fieldRow">
+          <div class="field">
+            <label>日期</label>
+            <div class="pick" id="datePick">2026-01-01</div>
+          </div>
+          <div class="field">
+            <label>金額</label>
+            <input id="priceInput" type="number" inputmode="numeric" min="0" placeholder="0" />
+          </div>
+        </div>
+
+        <div class="fieldRow">
+          <div class="field">
+            <label>店家</label>
+            <div class="pick" id="storePick">選擇店家</div>
+          </div>
+          <div class="field">
+            <label>品項</label>
+            <input id="itemInput" maxlength="45" placeholder="例如：波霸紅茶" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>甜度</label>
+          <div class="segRow" id="sugarRow"></div>
+        </div>
+        <div class="field">
+          <label>冰量</label>
+          <div class="segRow" id="iceRow"></div>
+        </div>
+      </div>
+
+      <div class="dangerRow">
+        <button class="dangerBtn" id="toggleLike">👍/👎 切換</button>
+        <button class="dangerBtn" id="deleteRecord">刪除</button>
+      </div>
+
+      <button class="primaryBtn" id="saveRecord">儲存紀錄</button>
+    </div>
+  </div>
+
+  <!-- Store modal -->
+  <div class="overlay" id="storeOverlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="closeX" data-close="storeOverlay">×</button>
+
+      <div class="storeHeader">
+        <div class="title">選擇店家</div>
+        <button class="manageBtn" id="toggleManage">管理</button>
+      </div>
+
+      <div class="chips" id="storeChips"></div>
+
+      <div class="addRow" id="openAddStore">＋ 新增店家</div>
+
+      <button class="primaryBtn" data-close="storeOverlay">關閉</button>
+    </div>
+  </div>
+
+  <!-- Add store modal (custom, same style) -->
+  <div class="overlay" id="addStoreOverlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="closeX" data-close="addStoreOverlay">×</button>
+      <h3>新增店家</h3>
+      <div class="field">
+        <label>店家名稱</label>
+        <input id="addStoreInput" maxlength="20" placeholder="例如：清心、茶湯會" />
+      </div>
+      <div class="hint">打錯也沒關係，等等可以去「管理」刪掉它 😏</div>
+      <div class="dangerRow">
+        <button class="dangerBtn" data-close="addStoreOverlay">取消</button>
+        <button class="dangerBtn" id="confirmAddStore">新增</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- List modal (Ranking / Like / Dislike) -->
+  <div class="overlay" id="listOverlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="closeX" data-close="listOverlay">×</button>
+      <h3 id="listTitle">
+        <!-- outline list icon -->
+        <svg class="hIcon" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" opacity=".28"></circle>
+          <path d="M8 9h8M8 12h8M8 15h8"/>
+        </svg>
+        最常喝排名
+      </h3>
+      <div class="list" id="listBody"></div>
+      <button class="primaryBtn" data-close="listOverlay">關閉</button>
+    </div>
+  </div>
+
+  <!-- JS error overlay -->
+  <div class="jsErr" id="jsErr">
+    <h2>JS Error</h2>
+    <pre id="jsErrMsg"></pre>
+    <div class="small">把上面的錯誤訊息截圖丟我，我可以精準抓凶手。</div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ========== crash guard: avoid white screen ==========
+  function showJSError(err){
+    const box = document.getElementById("jsErr");
+    const msg = document.getElementById("jsErrMsg");
+    msg.textContent = String(err && (err.stack || err.message || err) || "Unknown error");
+    box.classList.add("show");
+  }
+  window.addEventListener("error", (e) => showJSError(e.error || e.message));
+  window.addEventListener("unhandledrejection", (e) => showJSError(e.reason));
+
+  // ========== storage ==========
+  const KEY = "drinklog_v3_state";
+  const defaultStores = ["五十嵐","可不可","麻古","得正","五桐號","鶴茶樓","迷客夏","大苑子"];
+  const sugarOptions = ["無糖","微糖","半糖","少糖","全糖","固定"];
+  const iceOptions = ["去冰","微冰","少冰","正常","常溫","溫","熱","固定"];
+
+  const today = new Date();
+  const pad = (n) => String(n).padStart(2,"0");
+  const fmtDate = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const ymKey = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+
+  function safeParse(json, fallback){
+    try{ return JSON.parse(json); }catch(_){ return fallback; }
+  }
+  function load(){
+    const raw = localStorage.getItem(KEY);
+    const st = raw ? safeParse(raw, null) : null;
+    if(st && typeof st === "object"){
+      // minimal migrations / guards
+      st.records = Array.isArray(st.records) ? st.records : [];
+      st.stores = Array.isArray(st.stores) ? st.stores : [...defaultStores];
+      return st;
+    }
+    return { records: [], stores: [...defaultStores] };
+  }
+  function save(){
+    localStorage.setItem(KEY, JSON.stringify(state));
+  }
+
+  let state = load();
+
+  // ========== dom ==========
+  const grid = document.getElementById("grid");
+  const monthLabel = document.getElementById("monthLabel");
+
+  const yearCountEl = document.getElementById("yearCount");
+  const yearMoneyEl = document.getElementById("yearMoney");
+  const monthCountEl = document.getElementById("monthCount");
+  const monthMoneyEl = document.getElementById("monthMoney");
+
+  const likeCountEl = document.getElementById("likeCount");
+  const dislikeCountEl = document.getElementById("dislikeCount");
+
+  const topCardsEl = document.getElementById("topCards");
+
+  // overlays
+  const overlays = {
+    recordOverlay: document.getElementById("recordOverlay"),
+    storeOverlay: document.getElementById("storeOverlay"),
+    addStoreOverlay: document.getElementById("addStoreOverlay"),
+    listOverlay: document.getElementById("listOverlay"),
+  };
+
+  function open(id){ overlays[id].classList.add("show"); }
+  function close(id){ overlays[id].classList.remove("show"); }
+
+  // close handlers
+  document.body.addEventListener("click", (e) => {
+    const t = e.target;
+    if(t && t.dataset && t.dataset.close){
+      close(t.dataset.close);
+    }
+    if(t.classList && t.classList.contains("overlay")){
+      t.classList.remove("show");
+    }
+  });
+
+  // ========== calendar state ==========
+  let viewYear = today.getFullYear();
+  let viewMonth = today.getMonth(); // 0-11
+  let selectedDate = fmtDate(today);
+
+  // ========== UI: record editor ==========
+  const recordTitle = document.getElementById("recordTitle");
+  const datePick = document.getElementById("datePick");
+  const priceInput = document.getElementById("priceInput");
+  const storePick = document.getElementById("storePick");
+  const itemInput = document.getElementById("itemInput");
+  const sugarRow = document.getElementById("sugarRow");
+  const iceRow = document.getElementById("iceRow");
+  const saveRecordBtn = document.getElementById("saveRecord");
+  const deleteRecordBtn = document.getElementById("deleteRecord");
+  const toggleLikeBtn = document.getElementById("toggleLike");
+
+  let editingId = null;
+  let currentTag = "normal"; // normal | like | dislike
+  let currentSugar = "無糖";
+  let currentIce = "去冰";
+  let currentStore = "";
+
+  function buildSegRow(container, options, getVal, setVal){
+    container.innerHTML = "";
+    options.forEach(opt => {
+      const b = document.createElement("div");
+      b.className = "seg" + (getVal()===opt ? " on" : "");
+      b.textContent = opt;
+      b.addEventListener("click", () => {
+        setVal(opt);
+        [...container.children].forEach(ch => ch.classList.remove("on"));
+        b.classList.add("on");
+      });
+      container.appendChild(b);
+    });
+  }
+
+  function openEditorForDate(dateStr){
+    editingId = null;
+    currentTag = "normal";
+    currentSugar = "無糖";
+    currentIce = "去冰";
+    currentStore = "";
+
+    recordTitle.textContent = "新增紀錄";
+    datePick.textContent = dateStr;
+    priceInput.value = "";
+    storePick.textContent = "選擇店家";
+    itemInput.value = "";
+
+    buildSegRow(sugarRow, sugarOptions, () => currentSugar, (v)=>currentSugar=v);
+    buildSegRow(iceRow, iceOptions, () => currentIce, (v)=>currentIce=v);
+
+    deleteRecordBtn.style.display = "none";
+    toggleLikeBtn.style.display = "block";
+    open("recordOverlay");
+  }
+
+  function openEditorForRecord(rec){
+    editingId = rec.id;
+    currentTag = rec.tag || "normal";
+    currentSugar = rec.sugar || "無糖";
+    currentIce = rec.ice || "去冰";
+    currentStore = rec.store || "";
+
+    recordTitle.textContent = "編輯紀錄";
+    datePick.textContent = rec.date;
+    priceInput.value = rec.price ?? "";
+    storePick.textContent = rec.store || "選擇店家";
+    itemInput.value = rec.item || "";
+
+    buildSegRow(sugarRow, sugarOptions, () => currentSugar, (v)=>currentSugar=v);
+    buildSegRow(iceRow, iceOptions, () => currentIce, (v)=>currentIce=v);
+
+    deleteRecordBtn.style.display = "block";
+    toggleLikeBtn.style.display = "block";
+    open("recordOverlay");
+  }
+
+  // toggle tag
+  function tagCycle(tag){
+    if(tag==="normal") return "like";
+    if(tag==="like") return "dislike";
+    return "normal";
+  }
+  toggleLikeBtn.addEventListener("click", () => {
+    currentTag = tagCycle(currentTag);
+    const txt = currentTag==="like" ? "目前：讚讚" : currentTag==="dislike" ? "目前：踩雷" : "目前：普通";
+    toggleLikeBtn.textContent = "👍/👎 切換（" + txt + "）";
+  });
+
+  // save / delete record
+  function newId(){
+    return "r_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+  }
+
+  function upsertRecord(){
+    const date = datePick.textContent.trim();
+    const store = (currentStore || "").trim();
+    const item = itemInput.value.trim();
+    const price = Number(priceInput.value || 0);
+
+    if(!store){
+      alert("請先選擇店家 🙏");
+      return;
+    }
+    if(!item){
+      alert("品項先寫一下啦～不然你明天會忘 😆");
+      return;
+    }
+
+    if(editingId){
+      const idx = state.records.findIndex(r => r.id===editingId);
+      if(idx>=0){
+        state.records[idx] = {
+          ...state.records[idx],
+          date, store, item,
+          sugar: currentSugar,
+          ice: currentIce,
+          price: Math.max(0, price|0),
+          tag: currentTag
+        };
+      }
+    }else{
+      state.records.push({
+        id:newId(),
+        date, store, item,
+        sugar: currentSugar,
+        ice: currentIce,
+        price: Math.max(0, price|0),
+        tag: currentTag,
+        createdAt: Date.now()
+      });
+    }
+    save();
+    close("recordOverlay");
+    renderAll();
+  }
+
+  saveRecordBtn.addEventListener("click", upsertRecord);
+
+  deleteRecordBtn.addEventListener("click", () => {
+    if(!editingId) return;
+    state.records = state.records.filter(r => r.id !== editingId);
+    save();
+    close("recordOverlay");
+    renderAll();
+  });
+
+  // Quick add
+  document.getElementById("openQuickAdd").addEventListener("click", () => {
+    openEditorForDate(selectedDate);
+  });
+
+  // ========== store picker ==========
+  const storeOverlay = overlays.storeOverlay;
+  const storeChips = document.getElementById("storeChips");
+  const toggleManageBtn = document.getElementById("toggleManage");
+  const openAddStoreBtn = document.getElementById("openAddStore");
+  const addStoreInput = document.getElementById("addStoreInput");
+  const confirmAddStoreBtn = document.getElementById("confirmAddStore");
+
+  let manageMode = false;
+
+  function renderStores(){
+    storeChips.innerHTML = "";
+    storeChips.classList.toggle("manage", manageMode);
+    state.stores.forEach((name) => {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = name;
+
+      const del = document.createElement("button");
+      del.className = "del";
+      del.type = "button";
+      del.textContent = "×";
+      del.title = "刪除店家";
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // allow deleting default stores too (your request)
+        state.stores = state.stores.filter(s => s !== name);
+        // If current store removed, clear selection
+        if(currentStore === name){
+          currentStore = "";
+          storePick.textContent = "選擇店家";
+        }
+        save();
+        renderStores();
+      });
+
+      chip.appendChild(del);
+
+      chip.addEventListener("click", () => {
+        if(manageMode) return; // in manage mode, only delete
+        currentStore = name;
+        storePick.textContent = name;
+        close("storeOverlay");
+      });
+
+      storeChips.appendChild(chip);
+    });
+  }
+
+  storePick.addEventListener("click", () => {
+    manageMode = false;
+    toggleManageBtn.textContent = "管理";
+    renderStores();
+    open("storeOverlay");
+  });
+
+  toggleManageBtn.addEventListener("click", () => {
+    manageMode = !manageMode;
+    toggleManageBtn.textContent = manageMode ? "完成" : "管理";
+    renderStores();
+  });
+
+  openAddStoreBtn.addEventListener("click", () => {
+    addStoreInput.value = "";
+    open("addStoreOverlay");
+  });
+
+  confirmAddStoreBtn.addEventListener("click", () => {
+    const name = addStoreInput.value.trim();
+    if(!name){
+      alert("店家名稱不能空白啦～");
+      return;
+    }
+    if(state.stores.includes(name)){
+      alert("這家已經在清單裡了 😆");
+      return;
+    }
+    state.stores.push(name);
+    save();
+    close("addStoreOverlay");
+    renderStores();
+  });
+
+  // ========== calendar render ==========
+  function daysInMonth(y,m){
+    return new Date(y, m+1, 0).getDate();
+  }
+  function firstDow(y,m){
+    return new Date(y, m, 1).getDay(); // 0=Sun
+  }
+
+  function sumByDate(dateStr){
+    let count = 0;
+    let money = 0;
+    for(const r of state.records){
+      if(r.date === dateStr){
+        count++;
+        money += (r.price|0);
+      }
+    }
+    return {count, money};
+  }
+
+  function renderCalendar(){
+    monthLabel.textContent = `${viewYear}.${pad(viewMonth+1)}`;
+    grid.innerHTML = "";
+
+    const totalDays = daysInMonth(viewYear, viewMonth);
+    const start = firstDow(viewYear, viewMonth);
+
+    // 6 rows * 7
+    const cells = 42;
+    for(let i=0;i<cells;i++){
+      const dayNum = i - start + 1;
+      const cell = document.createElement("div");
+      cell.className = "day";
+
+      if(dayNum < 1 || dayNum > totalDays){
+        cell.classList.add("muted");
+        grid.appendChild(cell);
+        continue;
+      }
+
+      const d = new Date(viewYear, viewMonth, dayNum);
+      const dateStr = fmtDate(d);
+
+      cell.dataset.date = dateStr;
+
+      const dow = d.getDay();
+      if(dow===0) cell.classList.add("sun");
+      if(dow===6) cell.classList.add("sat");
+
+      const {count, money} = sumByDate(dateStr);
+      if(count>0) cell.classList.add("hasDrink");
+      if(dateStr === selectedDate) cell.classList.add("selected");
+
+      const num = document.createElement("div");
+      num.className = "num";
+      num.textContent = String(dayNum);
+
+      const amt = document.createElement("div");
+      amt.className = "amt";
+      amt.textContent = money>0 ? `$${money}` : (count>0 ? "$0" : "");
+
+      cell.appendChild(num);
+      cell.appendChild(amt);
+
+      cell.addEventListener("click", () => {
+        selectedDate = dateStr;
+        renderCalendar();
+        // tap day => if there are records, open list of that day; else open editor
+        const recs = state.records.filter(r => r.date === dateStr);
+        if(recs.length===0){
+          openEditorForDate(dateStr);
+        }else{
+          // open list for that day (tap any -> edit)
+          openDayList(dateStr, recs);
+        }
+      });
+
+      grid.appendChild(cell);
+    }
+  }
+
+  // ========== stats ==========
+  function renderStats(){
+    const y = viewYear;
+    const ym = `${viewYear}-${pad(viewMonth+1)}`;
+
+    let yc=0, ymoney=0;
+    let mc=0, mmoney=0;
+
+    let likeC=0, dislikeC=0;
+
+    for(const r of state.records){
+      if(!r || !r.date) continue;
+      if(r.date.startsWith(String(y)+"-")){
+        yc++;
+        ymoney += (r.price|0);
+      }
+      if(r.date.startsWith(ym)){
+        mc++;
+        mmoney += (r.price|0);
+      }
+      if(r.tag==="like") likeC++;
+      if(r.tag==="dislike") dislikeC++;
+    }
+
+    yearCountEl.textContent = yc;
+    yearMoneyEl.textContent = "$" + ymoney;
+    monthCountEl.textContent = mc;
+    monthMoneyEl.textContent = "$" + mmoney;
+
+    likeCountEl.textContent = likeC;
+    dislikeCountEl.textContent = dislikeC;
+  }
+
+  // ========== TOP 3 (store+item only on cards) ==========
+  function keyOf(r){
+    // group key by store+item+sugar+ice for ranking details
+    const s = (r.store||"").trim();
+    const i = (r.item||"").trim();
+    const su = (r.sugar||"").trim();
+    const ic = (r.ice||"").trim();
+    return `${s}|||${i}|||${su}|||${ic}`;
+  }
+
+  function computeRanking(){
+    // ranking by combo store+item+sugar+ice
+    const map = new Map();
+    for(const r of state.records){
+      const k = keyOf(r);
+      if(!k.includes("|||")) continue;
+      const v = map.get(k) || { count:0, sample:r };
+      v.count++;
+      v.sample = r;
+      map.set(k,v);
+    }
+    const arr = [...map.entries()].map(([k,v]) => ({
+      key:k,
+      count:v.count,
+      store:v.sample.store,
+      item:v.sample.item,
+      sugar:v.sample.sugar,
+      ice:v.sample.ice
+    }));
+    arr.sort((a,b)=> b.count-a.count || (a.store||"").localeCompare(b.store||""));
+    return arr;
+  }
+
+  function renderTop3(){
+    const rank = computeRanking().slice(0,3);
+    topCardsEl.innerHTML = "";
+
+    for(let i=0;i<3;i++){
+      const card = document.createElement("div");
+      if(!rank[i]){
+        card.className = "miniCard empty";
+        card.innerHTML = `<div class="s">（還沒資料）</div><div class="i">去喝一杯再回來 😆</div>`;
+      }else{
+        card.className = "miniCard";
+        card.innerHTML = `
+          <div class="s">${escapeHtml(rank[i].store)}</div>
+          <div class="i">${escapeHtml(rank[i].item)}</div>
+        `;
+        card.addEventListener("click", () => {
+          // open ranking list, highlight related
+          openRankingList();
+        });
+      }
+      topCardsEl.appendChild(card);
+    }
+  }
+
+  // ========== list modals ==========
+  const listTitle = document.getElementById("listTitle");
+  const listBody = document.getElementById("listBody");
+
+  function escapeHtml(s){
+    return String(s||"")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
+  }
+
+  function setListTitle(text, iconType){
+    // iconType: "rank" | "like" | "dislike" | "day"
+    const iconRank = `
+      <svg class="hIcon" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10" opacity=".28"></circle>
+        <path d="M8 9h8M8 12h8M8 15h8"/>
+      </svg>`;
+    const iconLike = `
+      <svg class="hIcon" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 9V5a3 3 0 0 0-6 0v4"/>
+        <path d="M7 9h11a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-7"/>
+        <path d="M7 9v10H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h3z"/>
+      </svg>`;
+    const iconDislike = `
+      <svg class="hIcon" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 15v4a3 3 0 0 0 6 0v-4"/>
+        <path d="M17 15H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h7"/>
+        <path d="M17 15V5h3a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-3z"/>
+      </svg>`;
+    const iconDay = `
+      <svg class="hIcon" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="5" width="18" height="16" rx="3"/>
+        <path d="M8 3v4M16 3v4M3 9h18"/>
+      </svg>`;
+
+    const icon = iconType==="like" ? iconLike :
+                 iconType==="dislike" ? iconDislike :
+                 iconType==="day" ? iconDay : iconRank;
+
+    listTitle.innerHTML = icon + escapeHtml(text);
+  }
+
+  function openRankingList(){
+    const rank = computeRanking();
+    setListTitle("最常喝排名", "rank");
+    listBody.innerHTML = "";
+
+    if(rank.length===0){
+      listBody.innerHTML = `<div class="hint">尚無資料</div>`;
+      open("listOverlay");
+      return;
+    }
+
+    rank.slice(0, 20).forEach(row => {
+      const div = document.createElement("div");
+      div.className = "listItem";
+      div.innerHTML = `
+        <div class="txt">
+          <span class="main">${escapeHtml(row.store)} - ${escapeHtml(row.item)}</span>
+          <div class="sub">
+            <span class="pill">${escapeHtml(row.sugar)}/${escapeHtml(row.ice)}</span>
+          </div>
+        </div>
+        <div class="countPill">${row.count}次</div>
+      `;
+      listBody.appendChild(div);
+    });
+
+    open("listOverlay");
+  }
+
+  function openTagList(tag){
+    const title = tag==="like" ? "讚讚清單" : "踩雷紀錄";
+    setListTitle(title, tag);
+
+    const recs = state.records.filter(r => r.tag===tag);
+    listBody.innerHTML = "";
+    if(recs.length===0){
+      listBody.innerHTML = `<div class="hint">尚無資料</div>`;
+      open("listOverlay");
+      return;
+    }
+
+    // group by combo
+    const map = new Map();
+    for(const r of recs){
+      const k = keyOf(r);
+      const v = map.get(k) || { count:0, sample:r, latest:0 };
+      v.count++;
+      v.sample = r;
+      v.latest = Math.max(v.latest, r.createdAt||0);
+      map.set(k,v);
+    }
+    const arr = [...map.values()].map(v => ({
+      count:v.count,
+      store:v.sample.store,
+      item:v.sample.item,
+      sugar:v.sample.sugar,
+      ice:v.sample.ice,
+      latest:v.latest
+    }));
+    arr.sort((a,b)=> b.count-a.count || b.latest-a.latest);
+
+    arr.slice(0, 30).forEach(row => {
+      const div = document.createElement("div");
+      div.className = "listItem";
+      div.innerHTML = `
+        <div class="txt">
+          <span class="main">${escapeHtml(row.store)} - ${escapeHtml(row.item)}</span>
+          <div class="sub"><span class="pill">${escapeHtml(row.sugar)}/${escapeHtml(row.ice)}</span></div>
+        </div>
+        <div class="countPill">${row.count}次</div>
+      `;
+      listBody.appendChild(div);
+    });
+
+    open("listOverlay");
+  }
+
+  function openDayList(dateStr, recs){
+    setListTitle(dateStr, "day");
+    listBody.innerHTML = "";
+
+    // show each record (tap -> edit)
+    const sorted = [...recs].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    sorted.forEach(r => {
+      const div = document.createElement("div");
+      div.className = "listItem";
+      div.innerHTML = `
+        <div class="txt">
+          <span class="main">${escapeHtml(r.store)} - ${escapeHtml(r.item)}</span>
+          <div class="sub">
+            <span class="pill">${escapeHtml(r.sugar)}/${escapeHtml(r.ice)}</span>
+            ${r.price ? `<span class="pill">$${r.price}</span>` : ``}
+            ${r.tag==="like" ? `<span class="pill">讚</span>` : r.tag==="dislike" ? `<span class="pill">雷</span>` : ``}
+          </div>
+        </div>
+        <div class="countPill">編輯</div>
+      `;
+      div.addEventListener("click", () => {
+        close("listOverlay");
+        openEditorForRecord(r);
+      });
+      listBody.appendChild(div);
+    });
+
+    open("listOverlay");
+  }
+
+  // actions
+  document.getElementById("openLike").addEventListener("click", () => openTagList("like"));
+  document.getElementById("openDislike").addEventListener("click", () => openTagList("dislike"));
+  // Clicking "我最常喝" area could open ranking too (optional)
+  document.getElementById("bottomWrap").addEventListener("click", (e) => {
+    // if clicking on a card it already opens; otherwise open ranking
+    if(e.target.closest(".miniCard")) return;
+    openRankingList();
+  });
+
+  // ========== nav ==========
+  document.getElementById("prevMonth").addEventListener("click", () => {
+    viewMonth--;
+    if(viewMonth<0){ viewMonth=11; viewYear--; }
+    renderAll();
+  });
+  document.getElementById("nextMonth").addEventListener("click", () => {
+    viewMonth++;
+    if(viewMonth>11){ viewMonth=0; viewYear++; }
+    renderAll();
+  });
+  document.getElementById("goToday").addEventListener("click", () => {
+    viewYear = today.getFullYear();
+    viewMonth = today.getMonth();
+    selectedDate = fmtDate(today);
+    renderAll();
+  });
+
+  // ========== init ==========
+  function renderAll(){
+    renderStats();
+    renderCalendar();
+    renderTop3();
+  }
+
+  // initial: open current month
+  viewYear = today.getFullYear();
+  viewMonth = today.getMonth();
+  selectedDate = fmtDate(today);
+
+  // initialize toggleLike button label
+  toggleLikeBtn.textContent = "👍/👎 切換（目前：普通）";
+
+  renderStores();
+  renderAll();
+
+})();
+</script>
+</body>
+</html>
