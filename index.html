@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>飲料紀錄</title>
+
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="飲料紀錄" />
+
+  <!-- icon：同層 apple-touch-icon.PNG（你不能改小寫，就兩個都寫，存在誰吃誰） -->
+  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.PNG">
+  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="./apple-touch-icon.PNG">
+  <link rel="icon" type="image/png" href="./apple-touch-icon.png">
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+
+    :root{
+      --main:#8A9A5B;
+      --main-dark:#556B2F;
+      --bg:#F2F4EF;
+      --card:#ffffffcc;
+      --card2:#ffffffb8;
+      --weekend:#C08282;
+      --today-border:#CFE0B8;
+      --line:#ffffff80;
+      --soft:#F2F4EF;
+      --shadow:0 10px 26px rgba(0,0,0,.06);
+      --radius-xl:32px;
+      --radius-lg:24px;
+      --radius-md:18px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family:'Noto Sans TC', system-ui, -apple-system, "PingFang TC", "Heiti TC", sans-serif;
+      background: var(--bg);
+      -webkit-tap-highlight-color: transparent;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      overflow:hidden; /* 一頁看完：不讓 body 滾 */
+    }
+
+    /* ====== crash overlay ====== */
+    #fatal{
+      display:none;
+      position:fixed;
+      inset:0;
+      background:#fff;
+      padding:16px;
+      z-index:9999;
+      overflow:auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    #fatal pre{ white-space:pre-wrap; font-size:12px; line-height:1.4; }
+
+    /* ====== layout ====== */
+    #app{
+      height: 100svh;
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 10px 14px 12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .row{ display:flex; align-items:center; gap:10px; }
+    .center{ justify-content:center; }
+    .between{ justify-content:space-between; }
+
+    /* ====== header ====== */
+    .titleRow{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding-top: 4px;
+      flex: 0 0 auto;
+    }
+    .titleBtn{
+      display:flex; align-items:center; gap:8px;
+      border:none; background:transparent; cursor:pointer;
+      font-weight:900;
+      color: var(--main);
+      letter-spacing:.12em;
+      font-size: 20px;
+      padding:6px 8px;
+      border-radius: 999px;
+    }
+    .titleBtn:active{ opacity:.6; }
+    .pencil{
+      width:14px; height:14px; opacity:.5;
+    }
+
+    /* ====== stats ====== */
+    .stats{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      flex: 0 0 auto;
+    }
+    .stat{
+      background: var(--card);
+      border:1px solid var(--line);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      padding: 12px 12px 10px;
+      text-align:center;
+      position:relative;
+      overflow:hidden;
+    }
+    .stat .bar{
+      position:absolute; left:0; top:0; width:100%; height:4px;
+      opacity:.35;
+    }
+    .stat .cap{
+      font-weight:900;
+      letter-spacing:.2em;
+      font-size: 11px;
+      margin-bottom:6px;
+    }
+    .stat .val{
+      font-weight:900;
+      font-size: 16px;
+      color:#334155;
+    }
+    .stat .val .cup{ font-size:11px; color:#94a3b8; margin:0 2px; font-weight:900; }
+    .stat.year .cap, .stat.year .money{ color:#CD5C5C; }
+    .stat.year .bar{ background:#CD5C5C; }
+    .stat.month .cap{ color: var(--main); }
+    .stat.month .bar{ background: var(--main); }
+    .stat.month .money{ color: var(--main-dark); }
+
+    /* ====== month + add row ====== */
+    .monthAddRow{
+      flex: 0 0 auto;
+      display:flex;
+      align-items:center;
+      justify-content:flex-start; /* 往左 */
+      gap:10px;
+    }
+    .monthPill{
+      flex: 1 1 auto;
+      background: #ffffff99;
+      border:1px solid #ffffff66;
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      padding: 10px 14px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-height: 44px;
+    }
+    .navBtn{
+      width:38px; height:34px;
+      border-radius: 999px;
+      border:none;
+      background:#ffffffaa;
+      cursor:pointer;
+      font-weight:900;
+      color: var(--main);
+      font-size: 18px;
+    }
+    .navBtn:active{ transform:scale(.92); }
+    .monthLabel{
+      flex: 1 1 auto;
+      text-align:center;
+      font-weight:900;
+      color: var(--main-dark);
+      letter-spacing:.08em;
+      font-size: 18px;
+      min-width: 90px;
+    }
+    .todayBtn{
+      border:none;
+      background:#ffffffaa;
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor:pointer;
+      font-weight:900;
+      color: var(--main-dark);
+      font-size: 12px;
+    }
+    .todayBtn:active{ transform:scale(.96); }
+
+    .addBtn{
+      flex: 0 0 auto;
+      width: 50px;
+      height: 44px;
+      border-radius: 999px;
+      border:1px solid #ffffff66;
+      background:#ffffffaa;
+      box-shadow: var(--shadow);
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      color: var(--main-dark);
+      font-size: 22px;
+      line-height: 1;
+    }
+    .addBtn:active{ transform:scale(.96); }
+
+    /* ====== calendar card ====== */
+    .calendarCard{
+      background: #ffffffef;
+      border:1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      padding: 10px 10px 10px;
+      flex: 1 1 auto;        /* 吃掉中間空間 */
+      min-height: 0;         /* 讓內部能縮 */
+      display:flex;
+      flex-direction:column;
+    }
+
+    .dow{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      padding: 6px 6px 2px;
+      text-align:center;
+      font-weight:900;
+      font-size: 11px;
+      letter-spacing:.18em;
+      color:#A5B997;
+      flex: 0 0 auto;
+      align-items:center;
+      justify-items:center;
+    }
+    .dow div:nth-child(1), .dow div:nth-child(7){
+      color: var(--weekend);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      padding: 8px 8px 10px;
+      flex: 1 1 auto;
+      min-height: 0;
+      align-content:start;
+    }
+
+    /* 日曆：縮小，不再壓到底下 */
+    .day{
+      border:none;
+      background: #ffffff66;
+      border-radius: 18px;
+      height: clamp(30px, 5.0vh, 42px);
+      cursor:pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,.03);
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding-top: 2px;
+    }
+    .day:active{ transform:scale(.96); }
+    .day.empty{ background:transparent; box-shadow:none; cursor:default; }
+    .day .n{
+      font-weight:900;
+      font-size: 12px;
+      line-height: 1;
+      color: var(--main-dark);
+    }
+    .day.weekend .n{ color: var(--weekend); }
+    .day .sum{
+      font-weight:900;
+      font-size: 9px;
+      line-height: 1;
+      color:#94a3b8;
+      margin-top: 3px;
+    }
+    .day.today{
+      outline: 2px solid var(--today-border);
+      outline-offset: -2px;
+    }
+
+    .day.bg1{ background:#E1EAD1; }
+    .day.bg2{ background:#FEF5D4; }
+    .day.bg3{ background:#FEE2E2; }
+    .day.selected{
+      box-shadow: 0 0 0 2px rgba(138,154,91,.35) inset;
+    }
+
+    /* ====== bottom ====== */
+    .bottom{
+      flex: 0 0 auto;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding-bottom: 4px;
+    }
+
+    /* TOP 區：改成橫條 badge 壓中間，圈圈不佔位 */
+    .topCard{
+      position:relative;
+      background: #ffffffb5;
+      border:1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 18px 12px 12px; /* 上面多一點給 badge */
+      min-height: 78px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .topBadge{
+      position:absolute;
+      top:-12px;
+      left:50%;
+      transform:translateX(-50%);
+      background: var(--main);
+      color:white;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-weight:900;
+      letter-spacing:.12em;
+      font-size: 12px;
+      box-shadow: var(--shadow);
+    }
+    .topList{
+      width:100%;
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:10px;
+      align-items:stretch;
+    }
+    .topItem{
+      background:#fff;
+      border:1px solid #E1EAD1;
+      border-radius: 16px;
+      padding: 8px 10px;
+      text-align:center; /* 置中 */
+      cursor:pointer;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      gap:4px;
+      min-height: 52px;
+    }
+    .topItem:active{ transform:scale(.98); }
+    .topItem .shop{
+      font-weight:900;
+      color: var(--main-dark);
+      font-size: 11px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .topItem .item{
+      font-weight:900;
+      color:#94a3b8;
+      font-size: 10px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .topEmpty{
+      font-weight:900;
+      color:#94a3b8;
+      font-size: 12px;
+      text-align:center;
+      width:100%;
+    }
+
+    .actions{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .actionBtn{
+      background:#ffffffb5;
+      border:1px solid var(--line);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow);
+      padding: 14px 10px;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      font-weight:900;
+      font-size: 14px;
+    }
+    .actionBtn:active{ transform:scale(.98); }
+    .actionBtn.good{ color: var(--main-dark); }
+    .actionBtn.bad{ color: #B56B6B; }
+    .icon18{ width:18px; height:18px; display:block; }
+
+    /* ====== overlay / modal ====== */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(10px);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      z-index: 999;
+    }
+    .overlay.show{ display:flex; }
+
+    .modal{
+      width:min(420px, 100%);
+      background:#fff;
+      border-radius: 34px;
+      box-shadow: 0 24px 70px rgba(0,0,0,.22);
+      padding: 18px 18px 16px;
+    }
+    .modalTitleRow{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      margin-bottom: 12px;
+      gap:8px;
+    }
+    .modalTitle{
+      font-weight:900;
+      color: var(--main-dark);
+      letter-spacing:.08em;
+      font-size: 18px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .closeBtn{
+      position:absolute;
+      right:0;
+      top:50%;
+      transform:translateY(-50%);
+      width:40px; height:40px;
+      border-radius: 999px;
+      border:none;
+      background:#F2F4EF;
+      cursor:pointer;
+      font-weight:900;
+      color:#94a3b8;
+      font-size: 16px;
+    }
+    .closeBtn:active{ transform:translateY(-50%) scale(.96); }
+
+    /* ranking list */
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-top: 6px;
+    }
+    .listItem{
+      background:#F2F4EF;
+      border-radius: 16px;
+      padding: 12px 12px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      font-weight:900;
+    }
+    .listItem .left{
+      min-width:0;
+    }
+    .listItem .main{
+      font-size: 14px;
+      color:#111827;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .listItem .sub{
+      font-size: 12px;
+      color:#94a3b8;
+      margin-top: 4px;
+      font-weight:900;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .listItem .count{
+      font-size: 14px;
+      color:#6b7280;
+      flex: 0 0 auto;
+      opacity:.6;
+    }
+
+    .primary{
+      width:100%;
+      border:none;
+      border-radius: 18px;
+      background: var(--main-dark);
+      color:white;
+      font-weight:900;
+      letter-spacing:.18em;
+      height: 54px;
+      cursor:pointer;
+      margin-top: 14px;
+      font-size: 16px;
+    }
+    .primary:active{ transform:scale(.98); }
+
+    /* edit sheet (bottom) */
+    .sheet{
+      width:100%;
+      max-width: 430px;
+      margin: 0 auto;
+      background:#FAFBF9;
+      border-radius: 42px 42px 0 0;
+      padding: 18px 18px 24px;
+      box-shadow: 0 -20px 70px rgba(0,0,0,.18);
+      max-height: 86svh;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .sheetHeader{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom: 12px;
+    }
+    .sheetTitle{
+      font-weight:900;
+      color: var(--main-dark);
+      font-size: 20px;
+    }
+
+    .drinkList{ display:flex; flex-direction:column; gap:12px; }
+    .addCard{
+      padding: 16px;
+      border-radius: 28px;
+      background:#F2F4EF;
+      border: 2px dashed #DDE4D1;
+    }
+    .addCard button{
+      width:100%;
+      border:none;
+      background:transparent;
+      cursor:pointer;
+      font-weight:900;
+      color:#A5B997;
+      letter-spacing:.08em;
+      padding: 10px 0;
+    }
+    .addCard button:active{ opacity:.6; }
+
+    .drinkCard{
+      padding: 16px;
+      border-radius: 28px;
+      background:#fff;
+      box-shadow: 0 10px 26px rgba(0,0,0,.05);
+      border:1px solid #ffffff;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .drinkTopRow{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .noTag{
+      background: var(--main);
+      color:#fff;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-weight:900;
+      letter-spacing:.14em;
+      font-size: 11px;
+    }
+    .miniBtns{ display:flex; gap:10px; align-items:center; }
+    .miniBtn{
+      width:40px; height:40px;
+      border-radius: 14px;
+      border:none;
+      cursor:pointer;
+      background:transparent;
+      display:flex; align-items:center; justify-content:center;
+      color:#cbd5e1;
+    }
+    .miniBtn.onGood{ background:#E1EAD1; color: var(--main-dark); }
+    .miniBtn.onBad{ background:#FEE2E2; color:#B56B6B; }
+    .miniBtn:active{ transform:scale(.96); }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .fieldBtn, .fieldInput{
+      background:#F2F4EF;
+      border:none;
+      border-radius: 16px;
+      padding: 12px 12px;
+      font-weight:900;
+      font-size: 14px;
+      outline:none;
+      width:100%;
+      text-align:left;
+      color:#111827;
+    }
+    .fieldBtn:active{ opacity:.7; }
+    .placeholder{ color:#cbd5e1; }
+
+    .segLabel{
+      font-weight:900;
+      color:#A5B997;
+      font-size: 12px;
+      margin-left: 2px;
+      letter-spacing:.12em;
+    }
+    .segRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .seg{
+      border:none;
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-weight:900;
+      cursor:pointer;
+      font-size: 12px;
+      background:#F2F4EF;
+      color:#A5B997;
+    }
+    .seg.on{
+      background: var(--main);
+      color:white;
+      box-shadow: 0 10px 20px rgba(0,0,0,.06);
+    }
+    .seg:active{ transform:scale(.98); }
+
+    .priceWrap{ position:relative; }
+    .priceDollar{
+      position:absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-weight:900;
+      color: var(--main);
+    }
+    .priceInput{
+      padding-left: 30px;
+    }
+
+    /* ====== shop picker ====== */
+    .chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      justify-content:center;
+      margin: 10px 0 14px;
+    }
+    .chip{
+      position:relative;
+      border:none;
+      background:#F2F4EF;
+      color: var(--main-dark);
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight:900;
+      cursor:pointer;
+      min-width: 78px;
+      text-align:center;
+    }
+    .chip:active{ transform:scale(.98); }
+    .chipDel{
+      display:none;
+      position:absolute;
+      right: -4px;
+      top: -4px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border:none;
+      background:#fff;
+      box-shadow: 0 10px 20px rgba(0,0,0,.10);
+      color:#B56B6B;
+      font-weight:900;
+      cursor:pointer;
+      line-height: 22px;
+    }
+    .chips.manage .chipDel{ display:block; }
+
+    .shopFooterBtn{
+      width:100%;
+      border:1px solid #E1EAD1;
+      background:#fff;
+      border-radius: 16px;
+      padding: 14px 12px;
+      font-weight:900;
+      color: var(--main-dark);
+      cursor:pointer;
+    }
+    .shopFooterBtn:active{ transform:scale(.98); }
+
+    /* small helper */
+    .mutedText{ color:#94a3b8; font-weight:900; }
+
+    /* iOS input zoom fix */
+    input, button{ font-size: 16px; }
+  </style>
+</head>
+
+<body>
+  <!-- 白畫面自救 -->
+  <div id="fatal">
+    <h2 style="font-size:16px; font-weight:900; margin:0 0 8px;">頁面爆了（JS Error）</h2>
+    <pre id="fatalMsg"></pre>
+  </div>
+
+  <div id="app"></div>
+
+<script>
+/* ====== crash guard ====== */
+window.addEventListener("error", (e) => {
+  const box = document.getElementById("fatal");
+  const msg = document.getElementById("fatalMsg");
+  if (box && msg) {
+    box.style.display = "block";
+    msg.textContent = `Error: ${e.message}\\nFile: ${e.filename}\\nLine: ${e.lineno}:${e.colno}`;
+  }
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const box = document.getElementById("fatal");
+  const msg = document.getElementById("fatalMsg");
+  if (box && msg) {
+    box.style.display = "block";
+    msg.textContent = `Promise Rejection: ${String(e.reason)}`;
+  }
+});
+
+/********************
+ * Storage Keys
+ ********************/
+const KEY_TITLE = "fpj_app_title";
+const KEY_DATA  = "fpj_offline_data_v3";   // v3：避免把 v2 直接打爆
+const KEY_SHOPS = "fpj_shop_list_v2";
+
+/********************
+ * Options
+ ********************/
+const iceOptions   = ["正常","少冰","微冰","去冰","常溫","溫","熱","固定"];
+const sugarOptions = ["全糖","少糖","半糖","微糖","一分","0.5分","無糖","固定"];
+
+const defaultShops = ["五十嵐","可不可","麻古","得正","五桐號","鶴茶樓","迷客夏","大苑子"];
+
+/********************
+ * State
+ ********************/
+const today = new Date();
+let state = {
+  currentDate: new Date(today.getFullYear(), today.getMonth(), 1),
+  selectedDate: null,
+  appTitle: localStorage.getItem(KEY_TITLE) || "一隻肥豬嘉的誕生",
+  isEditingTitle: false,
+  records: safeParse(localStorage.getItem(KEY_DATA)) || {},  // { "YYYY-MM-DD": [drink, ...] }
+  shops: loadShops(),
+  shopPicker: { open:false, targetIdx:null, manage:false },
+};
+
+function safeParse(s){ try{ return JSON.parse(s); }catch(e){ return null; } }
+function saveData(){ localStorage.setItem(KEY_DATA, JSON.stringify(state.records)); }
+function saveTitle(t){ state.appTitle = t; localStorage.setItem(KEY_TITLE, t); }
+
+function loadShops(){
+  const saved = safeParse(localStorage.getItem(KEY_SHOPS));
+  if(Array.isArray(saved) && saved.length) return uniqueList(saved);
+  return [...defaultShops];
+}
+function saveShops(){ localStorage.setItem(KEY_SHOPS, JSON.stringify(uniqueList(state.shops))); }
+
+function uniqueList(arr){
+  const seen = new Set(); const out = [];
+  for(const x of arr){
+    const v = String(x||"").trim();
+    if(!v) continue;
+    if(seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
+  }
+  return out;
+}
+
+function formatDateKey(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function parseKeyDate(key){
+  const [y,m,d] = String(key).split("-").map(n=>Number(n));
+  if(!y || !m || !d) return null;
+  return new Date(y, m-1, d);
+}
+function sameDay(a,b){
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+function ensureDayArray(dateKey){
+  if(!state.records[dateKey]) state.records[dateKey] = [];
+  return state.records[dateKey];
+}
+function defaultDrink(){
+  return { shop:"", item:"", ice:"去冰", sugar:"無糖", price:0, rating:null };
+}
+
+/********************
+ * Escape
+ ********************/
+function escapeHtml(s){
+  return String(s||"")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+/********************
+ * Icons (outline)
+ ********************/
+function thumbUpIcon(color){
+  return `
+    <svg class="icon18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"/>
+      <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+    </svg>
+  `;
+}
+function thumbDownIcon(color){
+  return `
+    <svg class="icon18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z"/>
+      <path d="M17 2h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/>
+    </svg>
+  `;
+}
+function wifiOutlineIcon(color){
+  /* 你要的空心📶感（同色系） */
+  return `
+    <svg class="icon18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M5 12.55a11 11 0 0 1 14 0"/>
+      <path d="M8.5 15.5a6 6 0 0 1 7 0"/>
+      <path d="M12 19h0"/>
+      <circle cx="12" cy="19" r="1.2" fill="${color}" stroke="none"/>
+    </svg>
+  `;
+}
+
+/********************
+ * Stats + Ranking logic
+ *
+ * 你要的邏輯：
+ * - 統計：用「店家-品項」作為主key 計次數（不管甜冰）
+ * - 顯示：對於每個「店家-品項」，選出其內部「甜度/冰量」出現最多的那個版本做展示
+ ********************/
+function calculateStats(){
+  const y = state.currentDate.getFullYear();
+  const m = state.currentDate.getMonth();
+
+  let yTotal=0, yCount=0, mTotal=0, mCount=0;
+
+  const goodList = [];
+  const badList  = [];
+
+  // comboMain: { "店-品": { totalCount, variants: { "糖/冰": count }, bestVariantKey } }
+  const comboMain = {};
+
+  for(const key of Object.keys(state.records)){
+    const dt = parseKeyDate(key);
+    if(!dt) continue;
+
+    const isYear  = dt.getFullYear() === y;
+    const isMonth = isYear && dt.getMonth() === m;
+
+    for(const drink of (state.records[key]||[])){
+      const price = Number(drink.price || 0);
+      if(isYear){ yTotal += price; yCount++; }
+      if(isMonth){ mTotal += price; mCount++; }
+
+      const shop = (drink.shop||"").trim();
+      const item = (drink.item||"").trim();
+      const sugar = (drink.sugar||"無糖").trim();
+      const ice = (drink.ice||"去冰").trim();
+
+      if(shop && item){
+        const mainKey = `${shop}-${item}`;
+        if(!comboMain[mainKey]) comboMain[mainKey] = { totalCount:0, variants:{} };
+        comboMain[mainKey].totalCount++;
+        const vKey = `${sugar}/${ice}`;
+        comboMain[mainKey].variants[vKey] = (comboMain[mainKey].variants[vKey]||0) + 1;
+      }
+
+      if(drink.rating === "good") goodList.push({drink, date:key});
+      if(drink.rating === "bad")  badList.push({drink, date:key});
+    }
+  }
+
+  // build top 3 display
+  const topMain = Object.entries(comboMain)
+    .map(([mainKey, obj]) => {
+      // pick best variant for display
+      let bestV = null, bestC = -1;
+      for(const [vk, c] of Object.entries(obj.variants)){
+        if(c > bestC){ bestC = c; bestV = vk; }
+      }
+      return { mainKey, totalCount: obj.totalCount, bestVariant: bestV || "無糖/去冰" };
+    })
+    .sort((a,b)=> b.totalCount - a.totalCount)
+    .slice(0,3);
+
+  return { yTotal, yCount, mTotal, mCount, topMain, goodList, badList };
+}
+
+/********************
+ * Render Main
+ ********************/
+function render(){
+  const app = document.getElementById("app");
+  const stats = calculateStats();
+
+  const year = state.currentDate.getFullYear();
+  const month = state.currentDate.getMonth();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const firstDay = new Date(year, month, 1).getDay();
+
+  const goodCount = stats.goodList.length;
+  const badCount  = stats.badList.length;
+
+  // Title
+  let titleHtml = "";
+  if(state.isEditingTitle){
+    titleHtml = `
+      <input id="titleInput" type="text" value="${escapeHtml(state.appTitle)}"
+        style="
+          width: 100%;
+          max-width: 290px;
+          border-radius: 999px;
+          border: 2px solid var(--main);
+          background: #fff;
+          padding: 10px 14px;
+          font-weight: 900;
+          color: var(--main);
+          text-align: center;
+          outline: none;
+          letter-spacing: .12em;
+        "
+      />
+    `;
+  }else{
+    titleHtml = `
+      <button id="titleDisplay" class="titleBtn" type="button">
+        <span>${escapeHtml(state.appTitle)}</span>
+        <svg class="pencil" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--main)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+      </button>
+    `;
+  }
+
+  // Calendar DOW + Cells
+  const dowHtml = ['日','一','二','三','四','五','六'].map(d=>`<div>${d}</div>`).join("");
+
+  let cells = "";
+  for(let i=0;i<firstDay;i++){
+    cells += `<div class="day empty"></div>`;
+  }
+  for(let d=1; d<=daysInMonth; d++){
+    const dateObj = new Date(year, month, d);
+    const key = formatDateKey(dateObj);
+    const list = state.records[key] || [];
+    const count = list.length;
+
+    const isWeekend = ((firstDay + d - 1) % 7 === 0) || ((firstDay + d - 1) % 7 === 6);
+    const isT = sameDay(dateObj, today);
+    const isSelected = state.selectedDate && sameDay(dateObj, state.selectedDate);
+
+    let bgClass = "";
+    if(count===1) bgClass = "bg1";
+    if(count===2) bgClass = "bg2";
+    if(count>=3) bgClass = "bg3";
+
+    const daySum = count>0 ? list.reduce((s,i)=>s+Number(i.price||0),0) : 0;
+
+    cells += `
+      <button class="day ${bgClass} ${isWeekend?'weekend':''} ${isT?'today':''} ${isSelected?'selected':''}"
+        data-day="${d}" type="button" aria-label="${key}">
+        <div class="n">${d}</div>
+        ${count>0 ? `<div class="sum">$${daySum}</div>` : ``}
+      </button>
+    `;
+  }
+
+  // Top 3
+  let topHtml = "";
+  if(!stats.topMain.length){
+    topHtml = `<div class="topEmpty">尚未產生排名...</div>`;
+  }else{
+    topHtml = `
+      <div class="topList">
+        ${stats.topMain.map(t=>{
+          const [shop, ...rest] = t.mainKey.split("-");
+          const item = rest.join("-") || "";
+          return `
+            <div class="topItem" data-open-ranking="1">
+              <div class="shop">${escapeHtml(shop || t.mainKey)}</div>
+              <div class="item">${escapeHtml(item || "")}</div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  app.innerHTML = `
+    <div class="titleRow">
+      ${titleHtml}
+    </div>
+
+    <div class="stats">
+      <div class="stat year">
+        <div class="bar"></div>
+        <div class="cap">年度累計</div>
+        <div class="val">
+          <span>${stats.yCount}</span> <span class="cup">杯</span>
+          <span class="money">$${stats.yTotal.toLocaleString()}</span>
+        </div>
+      </div>
+      <div class="stat month">
+        <div class="bar"></div>
+        <div class="cap">本月統計</div>
+        <div class="val">
+          <span>${stats.mCount}</span> <span class="cup">杯</span>
+          <span class="money">$${stats.mTotal.toLocaleString()}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 月份列往左 + 右邊 + -->
+    <div class="monthAddRow">
+      <div class="monthPill">
+        <button class="navBtn" id="prevMonth" type="button" aria-label="上個月">〈</button>
+        <div class="monthLabel">${year}.${String(month+1).padStart(2,'0')}</div>
+        <button class="navBtn" id="nextMonth" type="button" aria-label="下個月">〉</button>
+        <button class="todayBtn" id="goToday" type="button">今天</button>
+      </div>
+      <button class="addBtn" id="quickAdd" type="button" aria-label="新增">+</button>
+    </div>
+
+    <div class="calendarCard">
+      <div class="dow">${dowHtml}</div>
+      <div class="grid">${cells}</div>
+    </div>
+
+    <div class="bottom">
+      <div class="topCard" id="topCard">
+        <div class="topBadge">TOP</div>
+        ${topHtml}
+      </div>
+
+      <div class="actions">
+        <button class="actionBtn good" id="openGood" type="button">
+          ${thumbUpIcon("currentColor")}
+          <span>讚讚 (${goodCount})</span>
+        </button>
+        <button class="actionBtn bad" id="openBad" type="button">
+          ${thumbDownIcon("currentColor")}
+          <span>踩雷 (${badCount})</span>
+        </button>
+      </div>
+    </div>
+  `;
+
+  wireMainEvents();
+
+  if(state.isEditingTitle){
+    const input = document.getElementById("titleInput");
+    input.focus();
+    input.addEventListener("blur", ()=>{
+      const v = (input.value||"").trim();
+      if(v) saveTitle(v);
+      state.isEditingTitle = false;
+      render();
+    }, { once:true });
+  }
+}
+
+/********************
+ * Main Events
+ ********************/
+function wireMainEvents(){
+  const titleDisplay = document.getElementById("titleDisplay");
+  if(titleDisplay){
+    titleDisplay.onclick = ()=>{
+      state.isEditingTitle = true;
+      render();
+    };
+  }
+
+  document.getElementById("prevMonth").onclick = ()=>{
+    state.currentDate = new Date(state.currentDate.getFullYear(), state.currentDate.getMonth()-1, 1);
+    render();
+  };
+  document.getElementById("nextMonth").onclick = ()=>{
+    state.currentDate = new Date(state.currentDate.getFullYear(), state.currentDate.getMonth()+1, 1);
+    render();
+  };
+  document.getElementById("goToday").onclick = ()=>{
+    state.currentDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    render();
+  };
+
+  // 點日期：直接開編輯（圖7那種）
+  document.querySelectorAll("[data-day]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const day = Number(btn.getAttribute("data-day"));
+      openEditModal(day);
+    });
+  });
+
+  // 右邊 +：快速新增（用今天）
+  document.getElementById("quickAdd").onclick = ()=>{
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    // 切到今天所在月
+    state.currentDate = new Date(d.getFullYear(), d.getMonth(), 1);
+    render();
+    openEditModal(d.getDate());
+  };
+
+  // TOP 卡片：開我最常喝
+  const topCard = document.getElementById("topCard");
+  if(topCard){
+    topCard.addEventListener("click", ()=>{
+      openRankingModal();
+    });
+  }
+
+  document.getElementById("openGood").onclick = ()=> openListModal("good");
+  document.getElementById("openBad").onclick  = ()=> openListModal("bad");
+}
+
+/********************
+ * Edit Modal (sheet)
+ ********************/
+function openEditModal(day){
+  state.selectedDate = new Date(state.currentDate.getFullYear(), state.currentDate.getMonth(), day);
+  const dateKey = formatDateKey(state.selectedDate);
+  ensureDayArray(dateKey);
+
+  const overlay = document.createElement("div");
+  overlay.id = "editOverlay";
+  overlay.className = "overlay show";
+  overlay.style.alignItems = "flex-end";
+  overlay.innerHTML = `
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="sheetHeader">
+        <div class="sheetTitle">${state.selectedDate.getMonth()+1}月${state.selectedDate.getDate()}日</div>
+        <button class="closeBtn" id="closeEdit" type="button">✕</button>
+      </div>
+
+      <div class="drinkList" id="drinkList"></div>
+
+      <button class="primary" id="saveClose" type="button">儲存紀錄</button>
+    </div>
+  `;
+
+  const old = document.getElementById("editOverlay");
+  if(old) old.remove();
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click",(e)=>{
+    if(e.target.id==="editOverlay") closeEditModal();
+  });
+
+  document.getElementById("closeEdit").onclick = closeEditModal;
+  document.getElementById("saveClose").onclick = closeEditModal;
+
+  renderDrinkCards();
+}
+
+function closeEditModal(){
+  const m = document.getElementById("editOverlay");
+  if(m) m.remove();
+  closeShopPicker();
+  render();
+}
+
+function renderDrinkCards(){
+  const dateKey = formatDateKey(state.selectedDate);
+  const list = ensureDayArray(dateKey);
+
+  const container = document.getElementById("drinkList");
+  container.innerHTML = "";
+
+  for(let idx=0; idx<3; idx++){
+    const drink = list[idx];
+    const exists = !!drink;
+
+    const canShow =
+      idx===0 ||
+      (list[idx-1] && (String(list[idx-1].item||"").trim() !== "" || String(list[idx-1].shop||"").trim() !== "")) ||
+      exists;
+
+    if(!canShow) continue;
+
+    if(!exists){
+      const add = document.createElement("div");
+      add.className = "addCard";
+      add.innerHTML = `<button type="button">＋ 新增第 ${idx+1} 杯</button>`;
+      add.querySelector("button").onclick = ()=>{
+        while(list.length <= idx) list.push(defaultDrink());
+        saveData();
+        renderDrinkCards();
+      };
+      container.appendChild(add);
+      continue;
+    }
+
+    const card = document.createElement("div");
+    card.className = "drinkCard";
+    card.innerHTML = `
+      <div class="drinkTopRow">
+        <div class="noTag">NO.${idx+1}</div>
+        <div class="miniBtns">
+          <button class="miniBtn ${drink.rating==='good'?'onGood':''}" data-action="good" data-idx="${idx}" type="button" aria-label="讚">
+            ${thumbUpIcon("currentColor")}
+          </button>
+          <button class="miniBtn ${drink.rating==='bad'?'onBad':''}" data-action="bad" data-idx="${idx}" type="button" aria-label="踩雷">
+            ${thumbDownIcon("currentColor")}
+          </button>
+          <button class="miniBtn" data-action="del" data-idx="${idx}" type="button" aria-label="刪除">
+            <svg class="icon18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <button class="fieldBtn" data-action="pickShop" data-idx="${idx}" type="button">
+          <span class="${(drink.shop||'').trim() ? '' : 'placeholder'}">
+            ${(drink.shop||"").trim() ? escapeHtml(drink.shop) : "店家"}
+          </span>
+        </button>
+
+        <input class="fieldInput" type="text" inputmode="text" autocomplete="off" autocapitalize="off"
+          placeholder="品項" data-field="item" data-idx="${idx}" value="${escapeHtml(drink.item||"")}" />
+      </div>
+
+      <div>
+        <div class="segLabel">甜度</div>
+        <div class="segRow">
+          ${sugarOptions.map(opt=>`
+            <button class="seg ${drink.sugar===opt?'on':''}" data-field="sugar" data-idx="${idx}" data-val="${opt}" type="button">${opt}</button>
+          `).join("")}
+        </div>
+      </div>
+
+      <div>
+        <div class="segLabel">冰量</div>
+        <div class="segRow">
+          ${iceOptions.map(opt=>`
+            <button class="seg ${drink.ice===opt?'on':''}" data-field="ice" data-idx="${idx}" data-val="${opt}" type="button">${opt}</button>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="priceWrap">
+        <div class="priceDollar">$</div>
+        <input class="fieldInput priceInput" type="number" inputmode="decimal"
+          placeholder="金額" data-field="price" data-idx="${idx}" value="${escapeHtml(String(drink.price||""))}" />
+      </div>
+    `;
+
+    container.appendChild(card);
+  }
+
+  wireEditEvents();
+}
+
+function wireEditEvents(){
+  const overlay = document.getElementById("editOverlay");
+  if(!overlay) return;
+
+  const dateKey = formatDateKey(state.selectedDate);
+  const list = ensureDayArray(dateKey);
+
+  overlay.querySelectorAll("[data-action]").forEach(btn=>{
+    btn.onclick = ()=>{
+      const idx = Number(btn.getAttribute("data-idx"));
+      const act = btn.getAttribute("data-action");
+      if(!list[idx]) return;
+
+      if(act==="good"){
+        list[idx].rating = (list[idx].rating==="good") ? null : "good";
+        saveData();
+        renderDrinkCards();
+        return;
+      }
+      if(act==="bad"){
+        list[idx].rating = (list[idx].rating==="bad") ? null : "bad";
+        saveData();
+        renderDrinkCards();
+        return;
+      }
+      if(act==="del"){
+        list.splice(idx,1);
+        if(list.length===0) delete state.records[dateKey];
+        saveData();
+        renderDrinkCards();
+        return;
+      }
+      if(act==="pickShop"){
+        openShopPicker(idx);
+        return;
+      }
+    };
+  });
+
+  overlay.querySelectorAll("button[data-field='sugar'], button[data-field='ice']").forEach(btn=>{
+    btn.onclick = ()=>{
+      const idx = Number(btn.getAttribute("data-idx"));
+      const field = btn.getAttribute("data-field");
+      const val = btn.getAttribute("data-val");
+      if(!list[idx]) return;
+      list[idx][field] = val;
+      saveData();
+      renderDrinkCards();
+    };
+  });
+
+  overlay.querySelectorAll("input[data-field]").forEach(inp=>{
+    const idx = Number(inp.getAttribute("data-idx"));
+    const field = inp.getAttribute("data-field");
+    let composing = false;
+
+    inp.addEventListener("compositionstart", ()=> composing = true);
+    inp.addEventListener("compositionend", (e)=>{
+      composing = false;
+      applyValue(e.target.value);
+    });
+    inp.addEventListener("input", (e)=>{
+      if(composing) return;
+      applyValue(e.target.value);
+    });
+    inp.addEventListener("blur", ()=>{
+      renderDrinkCards(); // 讓新增下一杯判斷刷新
+    });
+
+    function applyValue(raw){
+      if(!list[idx]) return;
+      if(field === "price"){
+        list[idx].price = raw === "" ? 0 : Number(raw);
+      }else{
+        list[idx][field] = raw;
+      }
+      saveData();
+    }
+  });
+}
+
+/********************
+ * Shop Picker + Manage/Delete (你說管理沒作用 → 這版重寫成可靠的)
+ ********************/
+function openShopPicker(targetIdx){
+  closeShopPicker();
+
+  state.shopPicker.open = true;
+  state.shopPicker.targetIdx = targetIdx;
+  state.shopPicker.manage = false;
+
+  const overlay = document.createElement("div");
+  overlay.id = "shopOverlay";
+  overlay.className = "overlay show";
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modalTitleRow">
+        <div class="modalTitle">選擇店家</div>
+        <button class="closeBtn" id="closeShop" type="button">✕</button>
+      </div>
+
+      <div class="row between" style="margin:-2px 2px 8px;">
+        <div></div>
+        <button id="shopManageBtn" type="button"
+          style="border:none;background:#F2F4EF;border-radius:999px;padding:8px 12px;font-weight:900;color:var(--main-dark);cursor:pointer;">
+          管理
+        </button>
+      </div>
+
+      <div class="chips" id="shopChips"></div>
+
+      <button id="openAddShop" class="shopFooterBtn" type="button">＋ 新增店家</button>
+      <button id="closeShop2" class="primary" type="button" style="letter-spacing:.18em;">關閉</button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click",(e)=>{
+    if(e.target.id==="shopOverlay") closeShopPicker();
+  });
+
+  document.getElementById("closeShop").onclick = closeShopPicker;
+  document.getElementById("closeShop2").onclick = closeShopPicker;
+
+  document.getElementById("shopManageBtn").onclick = ()=>{
+    state.shopPicker.manage = !state.shopPicker.manage;
+    renderShopChips();
+  };
+
+  document.getElementById("openAddShop").onclick = openAddShopDialog;
+
+  renderShopChips();
+}
+
+function renderShopChips(){
+  const chipsEl = document.getElementById("shopChips");
+  const manageBtn = document.getElementById("shopManageBtn");
+  if(!chipsEl || !manageBtn) return;
+
+  manageBtn.textContent = state.shopPicker.manage ? "完成" : "管理";
+  chipsEl.classList.toggle("manage", state.shopPicker.manage);
+  chipsEl.innerHTML = "";
+
+  state.shops.forEach((s)=>{
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.innerHTML = `${escapeHtml(s)}<button class="chipDel" type="button" aria-label="刪除">✕</button>`;
+
+    const del = chip.querySelector(".chipDel");
+    del.onclick = (e)=>{
+      e.stopPropagation();
+      // 刪除店家
+      state.shops = state.shops.filter(x => x !== s);
+      saveShops();
+      // 若目前選到被刪的店家，清掉
+      const dateKey = formatDateKey(state.selectedDate);
+      const list = ensureDayArray(dateKey);
+      const idx = state.shopPicker.targetIdx;
+      if(list[idx] && (list[idx].shop||"").trim() === s){
+        list[idx].shop = "";
+        saveData();
+        renderDrinkCards();
+      }
+      renderShopChips();
+    };
+
+    chip.onclick = ()=>{
+      if(state.shopPicker.manage) return; // 管理模式不選
+      applyShopToTarget(s);
+      closeShopPicker();
+    };
+
+    chipsEl.appendChild(chip);
+  });
+}
+
+function closeShopPicker(){
+  const m = document.getElementById("shopOverlay");
+  if(m) m.remove();
+  state.shopPicker = { open:false, targetIdx:null, manage:false };
+}
+
+function openAddShopDialog(){
+  const overlay = document.createElement("div");
+  overlay.id = "addShopDialog";
+  overlay.className = "overlay show";
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modalTitleRow">
+        <div class="modalTitle">新增店家</div>
+        <button class="closeBtn" id="closeAddShop" type="button">✕</button>
+      </div>
+
+      <input id="newShopInput" class="fieldInput" type="text" inputmode="text" autocomplete="off" autocapitalize="off"
+        placeholder="輸入店家名稱" style="padding:14px 14px;border-radius:20px;" />
+
+      <div class="row" style="margin-top:12px; gap:10px;">
+        <button id="cancelAddShop" type="button"
+          style="flex:1;border:1px solid #E1EAD1;background:#fff;border-radius:16px;padding:14px 10px;font-weight:900;color:#B56B6B;cursor:pointer;">
+          取消
+        </button>
+        <button id="confirmAddShop" type="button"
+          style="flex:1;border:none;background:var(--main-dark);border-radius:16px;padding:14px 10px;font-weight:900;color:#fff;cursor:pointer;">
+          新增
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click",(e)=>{
+    if(e.target.id==="addShopDialog") overlay.remove();
+  });
+
+  const input = document.getElementById("newShopInput");
+  input.focus();
+
+  document.getElementById("closeAddShop").onclick = ()=> overlay.remove();
+  document.getElementById("cancelAddShop").onclick = ()=> overlay.remove();
+
+  document.getElementById("confirmAddShop").onclick = ()=>{
+    const v = (input.value||"").trim();
+    if(!v) return;
+    state.shops = uniqueList([v, ...state.shops]);
+    saveShops();
+    overlay.remove();
+    // 更新 chips
+    renderShopChips();
+  };
+}
+
+function applyShopToTarget(shop){
+  const dateKey = formatDateKey(state.selectedDate);
+  const list = ensureDayArray(dateKey);
+  const idx = state.shopPicker.targetIdx;
+  if(idx==null || !list[idx]) return;
+  list[idx].shop = shop;
+  saveData();
+  renderDrinkCards();
+}
+
+/********************
+ * Ranking Modal (我最常喝 + 空心📶)
+ ********************/
+function openRankingModal(){
+  const stats = calculateStats();
+
+  const items = stats.topMain.length
+    ? stats.topMain.map(t=>{
+        // 顯示：店家-品項（甜/冰）
+        return `
+          <div class="listItem">
+            <div class="left">
+              <div class="main">${escapeHtml(t.mainKey)}（${escapeHtml(t.bestVariant)}）</div>
+            </div>
+            <div class="count">${t.totalCount}次</div>
+          </div>
+        `;
+      }).join("")
+    : `<div class="mutedText" style="text-align:center;padding:18px 0;">尚無資料</div>`;
+
+  const overlay = document.createElement("div");
+  overlay.id = "rankOverlay";
+  overlay.className = "overlay show";
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modalTitleRow">
+        <div class="modalTitle">
+          ${wifiOutlineIcon("var(--main)")}
+          <span>我最常喝</span>
+        </div>
+        <button class="closeBtn" id="closeRank" type="button">✕</button>
+      </div>
+
+      <div class="list">${items}</div>
+      <button class="primary" id="closeRank2" type="button">關閉</button>
+    </div>
+  `;
+
+  const old = document.getElementById("rankOverlay");
+  if(old) old.remove();
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click",(e)=>{
+    if(e.target.id==="rankOverlay") closeRankingModal();
+  });
+
+  document.getElementById("closeRank").onclick = closeRankingModal;
+  document.getElementById("closeRank2").onclick = closeRankingModal;
+}
+
+function closeRankingModal(){
+  const m = document.getElementById("rankOverlay");
+  if(m) m.remove();
+}
+
+/********************
+ * Good/Bad List Modal (icon 換成空心 SVG，跟主畫面一致)
+ ********************/
+function drinkLabel(drink){
+  const shop = (drink.shop||"").trim();
+  const item = (drink.item||"").trim();
+  const s = (drink.sugar||"無糖").trim();
+  const i = (drink.ice||"去冰").trim();
+  const base = `${shop}${shop&&item?"-":""}${item}`.trim() || "（未命名）";
+  return `${base}（${s}/${i}）`;
+}
+
+function openListModal(type){
+  const stats = calculateStats();
+  const list = type==="good" ? stats.goodList : stats.badList;
+  const titleText = type==="good" ? "讚讚清單" : "踩雷紀錄";
+  const color = type==="good" ? "var(--main-dark)" : "#B56B6B";
+  const icon = type==="good" ? thumbUpIcon(color) : thumbDownIcon(color);
+
+  const items = list.length
+    ? list.map(({drink, date})=>`
+        <div class="listItem">
+          <div class="left">
+            <div class="main">${escapeHtml(drinkLabel(drink))}</div>
+          </div>
+          <div class="count">${escapeHtml(date.slice(5))}</div>
+        </div>
+      `).join("")
+    : `<div class="mutedText" style="text-align:center;padding:18px 0;">尚無資料</div>`;
+
+  const overlay = document.createElement("div");
+  overlay.id = "detailOverlay";
+  overlay.className = "overlay show";
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modalTitleRow">
+        <div class="modalTitle" style="color:${color}">
+          ${icon}
+          <span>${titleText}</span>
+        </div>
+        <button class="closeBtn" id="closeDetail" type="button">✕</button>
+      </div>
+
+      <div class="list">${items}</div>
+      <button class="primary" id="closeDetail2" type="button">關閉</button>
+    </div>
+  `;
+
+  const old = document.getElementById("detailOverlay");
+  if(old) old.remove();
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click",(e)=>{
+    if(e.target.id==="detailOverlay") closeDetailModal();
+  });
+
+  document.getElementById("closeDetail").onclick = closeDetailModal;
+  document.getElementById("closeDetail2").onclick = closeDetailModal;
+}
+
+function closeDetailModal(){
+  const m = document.getElementById("detailOverlay");
+  if(m) m.remove();
+}
+
+/********************
+ * Boot
+ ********************/
+render();
+</script>
+</body>
+</html>
